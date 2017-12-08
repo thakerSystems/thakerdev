@@ -1,0 +1,120 @@
+/*
+COPYRIGHT NOTICE
+ * __________________
+ *
+ * NodeServiceManager - v0.1.0
+ *
+ * Copyright (C) 2015, Thaker Systems.
+ * All Rights Reserved.
+ *
+ * NOTICE:  All information contained herein is, and remains the property
+ * of FixNix Inc. Unauthorised copying of this  file, via any medium is
+ * strictly prohibited. Redistribution and use in source and binary forms,
+ * with or without modification, are not permitted.
+ * Proprietary and confidential.
+ *
+ * Author:
+ * Name: Jaffar
+ * Email: --
+ * Website: --
+ *
+ *
+ * FILE SUMMARY
+ * __________________
+ *
+ * This file contains the logic for the school creation service.
+ *
+ *************************************************************************/
+
+var crypto = require('crypto');
+var config = require('./../../../config');
+var log = require('./../../../log');
+
+exports.create = function(request, response) {
+
+    try
+    {
+        var json = "";
+        if (request.body.schoolName == null)
+        {
+            log.info({Function: "School.Create"}, "School Create Request. Details: 'School Name' is empty");
+            json = {
+                    error: "Leave Approve Request failed. School Name is not found in the request."
+                };
+            return response.sendStatus(401).json(json);
+        }
+
+        if (request.body.accessType == null)
+        {
+            log.info({Function: "School.Create"}, "School Create Request. Details: 'Access Type' is empty");
+            json = {
+                    error: "School Create Request failed. User Id is not found in the request."
+                };
+            return response.sendStatus(401).json(json);
+        }
+
+        request.getConnection(function(connectionError, connection)
+        {
+            if (connectionError != null) {
+                log.error(connectionError, "Database Connection Error (Function = Approve School.Create)");
+                json = {
+                    error: "School Create Request failed. Database could not be reached."
+                };
+                return response.status(500).json(json);
+            }
+            var outSchoolId = "";
+            var outStatus = "";
+            connection.query('SET @outSchoolId = ""; SET @outStatus = ""; CALL schoolSignUpProc(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,@outSchoolId, @outStatus); SELECT @outSchoolId as outSchoolId; SELECT @outStatus as outStatus;', [request.body.schoolName, request.body.schoolBoard, request.body.schoolStream, request.body.schoolAffiliationCountry, request.body.schoolLatLong, request.body.address1, request.body.address2, request.body.schoolLocation, request.body.Landmark, request.body.City, request.body.Province, request.body.Country, request.body.ZipCode, request.body.IsdCode, request.body.PhoneNumber1, request.body.PhoneNumber2, request.body.PhoneNumber3, request.body.FaxNumber1, request.body.Email1, request.body.Email2, request.body.Email3], function (queryError, schoolCreateResponse)
+                {
+                    if (queryError != null)
+                    {
+                        log.error(queryError, "Query Error. School Create Request failed. School Name: " + request.body.schoolName + " (Function = School.Create)");
+                        json =
+                            {
+                                error: "School Create Request failed. Please contact administrator if the problem persists :: admin@thakersystems.com."
+                            };
+                        return response.status(500).json(json);
+                    }
+                    else
+                    {
+                        log.info("School Create Resposne: " + JSON.stringify(schoolCreateResponse));
+                        if ((schoolCreateRepsonse == null) || (schoolCreateResponse[4][0].schoolId == null))
+                        {
+                            var json =
+                            {
+                                error: "School Create Request failed. Details: Invalid Request."
+                            };
+                            log.info({Function: "School.Create"}, "School Create Request failed. Details: Invalid request or there is an issue with your request, please contact administrator if the problem persits :: admin@thakersystems.com.");
+                            return response.status(401).json(json);
+                        }
+			else if(schoolCreateResponse[4][0].outStatus != 'Success')
+			{
+				json = 
+				{
+					error: "School Create Request failed. Details: Error in Request, if the problem persits contact administrator :: admin@thersystems.com"
+				};
+			log.info({Function: "School.Create"}, "School Create Request failed. Details: Invalid request or there is an issue with your request, please contact administrator if the problem persits :: admin@thakersystems.com.");
+                        return response.status(401).json(json);
+		        }
+			else
+		    	{
+				json = 
+				{
+					success: schoolCreateResponse[3][0].outSchoolId + " School Created Successfully"
+				};
+				log.info({Function: "School.Create"}, "School Create Request Success.");
+				return response.status(200).json(json);
+  		    	}
+		    }
+                });
+        });
+    }
+catch (error) {
+        json = {
+            error: "Error: " + error.message
+        };
+        log.error(error, "Exception Occurred (Function = School.Create)");
+        return response.status(500).json(json);
+    }
+};
+
